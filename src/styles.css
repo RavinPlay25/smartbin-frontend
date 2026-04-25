@@ -89,9 +89,14 @@ body {
 
 .sidebar-brand h1 {
   margin: 0;
-  font-size: 40px;
+  font-size: 28px;
   font-weight: 700;
   color: #f2f7ff;
+  white-space: nowrap;
+  line-height: 1;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .brand-icon {
@@ -157,8 +162,16 @@ body {
   z-index: 40;
 }
 
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
 .topbar-search {
-  width: min(560px, 58vw);
+  width: min(520px, 42vw);
 }
 
 .topbar-search .ant-input {
@@ -171,6 +184,7 @@ body {
   display: flex;
   align-items: center;
   gap: 14px;
+  margin-left: auto;
 }
 
 .topbar-filters {
@@ -233,6 +247,51 @@ body {
   padding: 24px;
 }
 
+.app-header-block {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-header-block h1 {
+  margin: 0;
+  font-size: 40px;
+  line-height: 1.1;
+  color: #0f2742;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-header-block p {
+  margin: 0;
+  font-size: 15px;
+  color: #6a809c;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-header-block.compact h1 {
+  font-size: 36px;
+}
+
+.app-header-block.compact p {
+  font-size: 15px;
+}
+
+.topbar-app-header {
+  max-width: min(700px, 52vw);
+}
+
+.landing-header {
+  margin-bottom: 6px;
+  text-align: center;
+  justify-items: center;
+}
+
 .role-selection-page {
   min-height: 100vh;
   background:
@@ -249,9 +308,6 @@ body {
 }
 
 .role-selection-content h1 {
-  margin: 0;
-  font-size: 48px;
-  color: #0f2742;
   text-align: center;
 }
 
@@ -1194,7 +1250,8 @@ body {
 @media (max-width: 1600px) {
   .sidebar { width: 280px; }
   .main-layout { margin-left: 280px; }
-  .sidebar-brand h1 { font-size: 32px; }
+  .sidebar-brand h1 { font-size: 24px; max-width: 190px; }
+  .app-header-block.compact h1 { font-size: 32px; }
   .sidebar-item { font-size: 24px; }
   .page-title { font-size: 40px; }
   .page-card-header h3 { font-size: 30px; }
@@ -1211,7 +1268,9 @@ body {
   .stability-head-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .overview-grid,
   .bin-grid { grid-template-columns: 1fr; }
-  .topbar-search { width: min(340px, 48vw); }
+  .topbar-search { width: min(300px, 44vw); }
+  .app-header-block.compact h1 { font-size: 28px; }
+  .app-header-block.compact p { font-size: 13px; }
   .topbar-filters { flex-wrap: wrap; }
   .topbar-select { min-width: 150px; }
   .role-split-list,
@@ -1222,11 +1281,15 @@ body {
   .sidebar { position: static; width: 100%; min-height: auto; }
   .main-layout { margin-left: 0; }
   .topbar { position: static; height: auto; padding: 14px; flex-wrap: wrap; }
+  .topbar-left { width: 100%; flex-direction: column; align-items: stretch; gap: 10px; }
   .topbar-search { width: 100%; }
+  .topbar-app-header { max-width: 100%; }
+  .topbar-app-header p { display: none; }
+  .app-header-block.compact h1 { font-size: 26px; }
   .topbar-actions { width: 100%; justify-content: space-between; flex-wrap: wrap; }
   .topbar-filters { width: 100%; }
   .topbar-select { flex: 1 1 160px; min-width: 140px; }
-  .sidebar-brand h1 { font-size: 28px; }
+  .sidebar-brand h1 { font-size: 22px; max-width: 170px; }
   .sidebar-item { font-size: 18px; }
   .sidebar-item .anticon { font-size: 20px; }
   .page-title { font-size: 32px; }
@@ -1234,6 +1297,7 @@ body {
   .stat-value { font-size: 34px; }
   .role-cards-grid { grid-template-columns: 1fr; }
   .role-selection-content h1 { font-size: 34px; }
+  .landing-header p { font-size: 15px; white-space: normal; text-align: center; }
   .role-selection-content > p { font-size: 18px; }
 
   .chatbot-wrap {

@@ -1,6 +1,7 @@
 import { Avatar, Badge, Button, Dropdown, Input } from "antd";
 import { BellOutlined, CalendarOutlined, SearchOutlined, UserOutlined } from "@ant-design/icons";
 import NotificationsDropdown from "./notificationsDropdown";
+import AppHeader from "./AppHeader";
 
 export default function Topbar({
   notifications,
@@ -9,13 +10,21 @@ export default function Topbar({
 }) {
   return (
     <header className="topbar">
-      <Input
-        className="topbar-search"
-        placeholder="Search bins, locations..."
-        prefix={<SearchOutlined style={{ color: "#8ea0b8" }} />}
-      />
+      <div className="topbar-left">
+        <AppHeader
+          title="Bin Integrity & Access Control"
+          subtitle="Physical Integrity, Secure Access & Tamper Detection"
+          compact
+          className="topbar-app-header"
+        />
+      </div>
 
       <div className="topbar-actions">
+        <Input
+          className="topbar-search"
+          placeholder="Search bins, locations..."
+          prefix={<SearchOutlined style={{ color: "#8ea0b8" }} />}
+        />
         {onSwitchRole ? (
           <Button className="date-filter switch-role-btn" onClick={onSwitchRole}>
             Switch Role

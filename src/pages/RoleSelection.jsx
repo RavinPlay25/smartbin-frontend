@@ -1,10 +1,15 @@
 import { Button, Card } from "antd";
+import AppHeader from "../components/AppHeader";
 
 export default function RoleSelection({ onSelectRole }) {
   return (
     <div className="role-selection-page">
       <div className="role-selection-content">
-        <h1>Smart Waste Monitoring System</h1>
+        <AppHeader
+          title="Bin Integrity & Access Control"
+          subtitle="Physical Integrity, Secure Access & Tamper Detection"
+          className="landing-header"
+        />
         <p>Select your dashboard view</p>
 
         <div className="role-cards-grid">
