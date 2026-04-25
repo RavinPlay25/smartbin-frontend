@@ -2,7 +2,8 @@ import {
   AlertOutlined,
   CheckCircleOutlined,
   EnvironmentOutlined,
-  InboxOutlined
+  InboxOutlined,
+  RiseOutlined
 } from "@ant-design/icons";
 import { message, Popconfirm, Switch } from "antd";
 import L from "leaflet";
@@ -47,6 +48,7 @@ const getBinCoordinates = (bin) => {
 export default function OverviewPage({ model, onRefreshBins, currentUserRole }) {
   const [loadingSwitches, setLoadingSwitches] = useState({});
   const { stats, decoratedBins, recentAlerts, overview } = model;
+  const analytics = overview.analytics;
   const markerBins = decoratedBins
     .map((bin) => ({
       ...bin,
@@ -93,6 +95,42 @@ export default function OverviewPage({ model, onRefreshBins, currentUserRole }) 
         <StatCard icon={CheckCircleOutlined} label="Stable Bins" value={stats.stableBins} trend="+5%" tone="success" />
         <StatCard icon={AlertOutlined} label="Tamper Alerts" value={stats.tamperAlerts} trend="-2" tone="danger" />
         <StatCard icon={EnvironmentOutlined} label="Active Devices" value={stats.activeDevices} trend="99.4%" tone="success" />
+      </div>
+
+      <div className="stats-grid four">
+        <div className="stat-card">
+          <div className="stat-head">
+            <div className="stat-icon"><InboxOutlined /></div>
+            <span className={`trend-badge ${analytics.trends.totalEvents.direction === "up" ? "up" : "down"}`}>
+              <RiseOutlined /> {analytics.trends.totalEvents.percent}%
+            </span>
+          </div>
+          <p className="stat-label">Total Events</p>
+          <h3 className="stat-value">{analytics.totalEvents}</h3>
+        </div>
+
+        <div className="stat-card danger">
+          <div className="stat-head">
+            <div className="stat-icon danger"><AlertOutlined /></div>
+            <span className={`trend-badge ${analytics.trends.tamperEvents.direction === "up" ? "down" : "up"}`}>
+              <RiseOutlined /> {analytics.trends.tamperEvents.percent}%
+            </span>
+          </div>
+          <p className="stat-label">Tamper Events</p>
+          <h3 className="stat-value">{analytics.tamperEvents}</h3>
+        </div>
+
+        <div className="stat-card warning">
+          <div className="stat-head"><div className="stat-icon warning"><AlertOutlined /></div></div>
+          <p className="stat-label">RFID Denied %</p>
+          <h3 className="stat-value">{analytics.rfidDeniedPercent}%</h3>
+        </div>
+
+        <div className="stat-card success">
+          <div className="stat-head"><div className="stat-icon success"><CheckCircleOutlined /></div></div>
+          <p className="stat-label">Service Mode %</p>
+          <h3 className="stat-value">{analytics.serviceModePercent}%</h3>
+        </div>
       </div>
 
       <div className="overview-grid">
@@ -164,6 +202,39 @@ export default function OverviewPage({ model, onRefreshBins, currentUserRole }) 
         </PageCard>
       </div>
 
+      <div className="overview-grid">
+        <PageCard title="Top Problematic Bins">
+          <p className="chart-subtitle">Top bins ranked by tamper frequency for fast operational prioritization.</p>
+          <div className="problem-list">
+            {analytics.topProblematicBins.length === 0 ? (
+              <p className="empty-text">No problematic bins detected.</p>
+            ) : (
+              analytics.topProblematicBins.map((item) => (
+                <div key={item.bin_id} className="problem-item">
+                  <strong>{item.bin_id}</strong>
+                  <span>{item.count} tamper events</span>
+                  <StatusBadge value={item.level === "critical" ? "Critical" : item.level === "warning" ? "Warning" : "Normal"} />
+                </div>
+              ))
+            )}
+          </div>
+        </PageCard>
+
+        <PageCard title="Time Insights">
+          <p className="chart-subtitle">Quick operational insights from event distribution over time.</p>
+          <div className="insight-list">
+            <div className="insight-item">
+              <h4>Peak Activity Time</h4>
+              <p>{analytics.timeInsights.activityText}</p>
+            </div>
+            <div className="insight-item">
+              <h4>Peak Tamper Time</h4>
+              <p>{analytics.timeInsights.tamperText}</p>
+            </div>
+          </div>
+        </PageCard>
+      </div>
+
       <PageCard title="Live Bin Status">
         <div className="bin-grid">
           {decoratedBins.map((bin) => (
@@ -171,6 +242,7 @@ export default function OverviewPage({ model, onRefreshBins, currentUserRole }) 
               <div>
                 <h4>{bin.bin_id}</h4>
                 <p>Last Seen: {bin.lastSeenLabel}</p>
+                <p>Stability Score: <strong>{bin.stabilityScore}</strong></p>
                 <div className="bin-service-row">
                   <span className="bin-service-label">Service Mode</span>
                   {currentUserRole === "admin" ? (

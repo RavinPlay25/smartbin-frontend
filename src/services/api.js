@@ -81,3 +81,21 @@ export async function approveRFID(data) {
 
   return result;
 }
+
+export async function sendChatMessage(message, context = null) {
+  const response = await fetch(`${API_BASE_URL}/api/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ message, context })
+  });
+
+  const result = await response.json();
+
+  if (!response.ok || !result?.success) {
+    throw new Error(result?.message || "Failed to fetch chat reply");
+  }
+
+  return result;
+}

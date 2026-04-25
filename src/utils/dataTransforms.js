@@ -71,13 +71,17 @@ export const buildDashboardModel = (bins, logs) => {
   const decoratedBins = bins.map((bin) => {
     const latest = latestByBin.get(bin.bin_id);
     const state = binState(bin, latest);
+    const binTamperCount = logs.filter((log) => log?.bin_id === bin.bin_id && log?.event === "tamper_detected").length;
+    const stabilityScore = Math.max(0, 100 - (binTamperCount * 5));
 
     return {
       ...bin,
       state,
       lastSeenLabel: toLabelDate(bin.last_seen),
       latestEvent: latest?.event || "bin_stable",
-      latestTimestamp: latest?.timestamp
+      latestTimestamp: latest?.timestamp,
+      tamperCount: binTamperCount,
+      stabilityScore
     };
   });
 
@@ -87,6 +91,7 @@ export const buildDashboardModel = (bins, logs) => {
   const activeDevices = decoratedBins.filter((bin) => String(bin.status).toLowerCase() === "online").length;
   const offlineBins = decoratedBins.filter((bin) => String(bin.status).toLowerCase() !== "online").length;
   const serviceModeBins = decoratedBins.filter((bin) => Boolean(bin.service_mode)).length;
+  const totalEvents = logs.length;
 
   const recentAlerts = [...logs]
     .filter((log) =>
@@ -126,6 +131,8 @@ export const buildDashboardModel = (bins, logs) => {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
 
   const rfidLogs = logs
     .filter((log) => log?.topic === "smartbin/rfid")
@@ -169,7 +176,15 @@ export const buildDashboardModel = (bins, logs) => {
     events: item.count
   }));
 
+  const activityHourly = groupLogsByHour(logs, () => true);
+  const peakActivity = activityHourly.reduce((max, item) => (item.count > max.count ? item : max), { hour: "00:00", count: 0 });
+  const peakTamper = tamperHourly.reduce((max, item) => (item.events > max.events ? item : max), { hour: "00:00", events: 0 });
+
   const topTamperBins = getTopBinsByEvent(logs, "tamper_detected", 5);
+  const topProblematicBins = topTamperBins.slice(0, 3).map((item, idx) => ({
+    ...item,
+    level: idx === 0 ? "critical" : idx === 1 ? "warning" : "normal"
+  }));
   const hasLocationData = decoratedBins.some((bin) => {
     const lat = Number(bin?.gps?.lat ?? bin?.lat);
     const lng = Number(bin?.gps?.lng ?? bin?.lng);
@@ -195,6 +210,44 @@ export const buildDashboardModel = (bins, logs) => {
   const totalScans = rfidLogs.length;
   const accessGranted = rfidLogs.filter((log) => String(log.status).toLowerCase() === "granted").length;
   const accessDenied = rfidLogs.filter((log) => String(log.status).toLowerCase() === "denied").length;
+  const deniedPercent = totalScans > 0 ? Number(((accessDenied / totalScans) * 100).toFixed(1)) : 0;
+  const serviceModePercent = totalBins > 0 ? Number(((serviceModeBins / totalBins) * 100).toFixed(1)) : 0;
+
+  const todayTotalEvents = logs.filter((log) => {
+    const d = toDate(log.timestamp);
+    return d && d >= today;
+  }).length;
+
+  const yesterdayTotalEvents = logs.filter((log) => {
+    const d = toDate(log.timestamp);
+    return d && d >= yesterday && d < today;
+  }).length;
+
+  const todayTamperEvents = tamperLogs.filter((log) => {
+    const d = toDate(log.timestamp);
+    return d && d >= today;
+  }).length;
+
+  const yesterdayTamperEvents = tamperLogs.filter((log) => {
+    const d = toDate(log.timestamp);
+    return d && d >= yesterday && d < today;
+  }).length;
+
+  const calcTrend = (todayValue, yesterdayValue) => {
+    if (yesterdayValue === 0) {
+      if (todayValue === 0) return { percent: 0, direction: "flat" };
+      return { percent: 100, direction: "up" };
+    }
+
+    const delta = ((todayValue - yesterdayValue) / yesterdayValue) * 100;
+    return {
+      percent: Number(Math.abs(delta).toFixed(1)),
+      direction: delta > 0 ? "up" : delta < 0 ? "down" : "flat"
+    };
+  };
+
+  const totalTrend = calcTrend(todayTotalEvents, yesterdayTotalEvents);
+  const tamperTrend = calcTrend(todayTamperEvents, yesterdayTamperEvents);
   const activeStaffToday = new Set(
     rfidLogs
       .filter((log) => {
@@ -224,6 +277,7 @@ export const buildDashboardModel = (bins, logs) => {
     key: `${log.timestamp}-${index}`,
     rfid_uid: log.rfid_uid || log.uid || "-",
     timestamp: toLabelDate(log.timestamp),
+    event: log.event || "-",
     user: log.user || "Unknown",
     role: normalizeRoleLabel(log.role),
     bin_id: log.bin_id || "-",
@@ -237,6 +291,7 @@ export const buildDashboardModel = (bins, logs) => {
     bin_id: log.bin_id || "-",
     event: "Tamper Detected",
     status: idx % 2 === 0 ? "Unresolved" : "Resolved",
+    severity: idx % 3 === 0 ? "High" : idx % 3 === 1 ? "Medium" : "Low",
     duration: `${12 + idx * 3} mins`
   }));
 
@@ -275,7 +330,26 @@ export const buildDashboardModel = (bins, logs) => {
     notifications,
     overview: {
       systemHealthTrend: buildSystemHealthTrend(logs),
-      eventBreakdown
+      eventBreakdown,
+      analytics: {
+        totalEvents,
+        tamperEvents: tamperLogs.length,
+        rfidDeniedPercent: deniedPercent,
+        serviceModePercent,
+        trends: {
+          totalEvents: totalTrend,
+          tamperEvents: tamperTrend
+        },
+        topProblematicBins,
+        timeInsights: {
+          peakActivityHour: peakActivity.hour,
+          peakTamperHour: peakTamper.hour,
+          activityText: `Peak activity is around ${peakActivity.hour}`,
+          tamperText: peakTamper.events > 0
+            ? `Most tamper events occur around ${peakTamper.hour}`
+            : "No tamper spikes detected yet"
+        }
+      }
     },
     stability: {
       avgScore: totalBins ? Number(((stableBins / totalBins) * 100).toFixed(1)) : 0,

@@ -8,18 +8,72 @@ import {
 import PageCard from "../components/PageCard";
 import StatusBadge from "../components/StatusBadge";
 import { TamperHourlyChart, TopBinsTamperChart } from "../components/SimpleCharts";
-
-const columns = [
-  { title: "TIMESTAMP", dataIndex: "timestamp", key: "timestamp" },
-  { title: "BIN ID", dataIndex: "bin_id", key: "bin_id" },
-  { title: "EVENT TYPE", dataIndex: "event", key: "event" },
-  { title: "STATUS", dataIndex: "status", key: "status", render: (v) => <StatusBadge value={v} /> },
-  { title: "DURATION", dataIndex: "duration", key: "duration" },
-  { title: "ACTIONS", key: "actions", render: () => <button className="table-action">Resolve</button> }
-];
+import { Input } from "antd";
+import { useMemo, useState } from "react";
 
 export default function TamperAnalyticsPage({ model }) {
   const tamper = model.tamper;
+  const [searchText, setSearchText] = useState("");
+
+  const binFilterValues = useMemo(
+    () => [...new Set((tamper.recentEvents || []).map((item) => item.bin_id).filter(Boolean))].sort(),
+    [tamper.recentEvents]
+  );
+
+  const parseDate = (value) => {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const filteredTamperRows = useMemo(() => {
+    const term = searchText.trim().toLowerCase();
+    if (!term) return tamper.recentEvents;
+    return (tamper.recentEvents || []).filter((row) => String(row.bin_id || "").toLowerCase().includes(term));
+  }, [searchText, tamper.recentEvents]);
+
+  const columns = [
+    {
+      title: "TIMESTAMP",
+      dataIndex: "timestamp",
+      key: "timestamp",
+      filters: [
+        { text: "Last 24h", value: "24h" },
+        { text: "Last 3 days", value: "3d" },
+        { text: "Older", value: "older" }
+      ],
+      onFilter: (value, record) => {
+        const d = parseDate(record.timestamp);
+        if (!d) return false;
+        const now = Date.now();
+        if (value === "24h") return now - d.getTime() <= 24 * 60 * 60 * 1000;
+        if (value === "3d") return now - d.getTime() <= 3 * 24 * 60 * 60 * 1000;
+        return now - d.getTime() > 3 * 24 * 60 * 60 * 1000;
+      }
+    },
+    {
+      title: "BIN ID",
+      dataIndex: "bin_id",
+      key: "bin_id",
+      filters: binFilterValues.map((value) => ({ text: value, value })),
+      onFilter: (value, record) => record.bin_id === value
+    },
+    { title: "EVENT TYPE", dataIndex: "event", key: "event" },
+    {
+      title: "SEVERITY",
+      dataIndex: "severity",
+      key: "severity",
+      filters: [
+        { text: "High", value: "High" },
+        { text: "Medium", value: "Medium" },
+        { text: "Low", value: "Low" }
+      ],
+      onFilter: (value, record) => record.severity === value,
+      render: (value) => <StatusBadge value={value || "low"} />
+    },
+    { title: "STATUS", dataIndex: "status", key: "status", render: (v) => <StatusBadge value={v} /> },
+    { title: "DURATION", dataIndex: "duration", key: "duration" },
+    { title: "ACTIONS", key: "actions", render: () => <button className="table-action">Resolve</button> }
+  ];
 
   return (
     <div className="page-shell">
@@ -88,9 +142,14 @@ export default function TamperAnalyticsPage({ model }) {
 
       <PageCard title="Recent Tamper Events">
         <p className="chart-subtitle">Latest tamper incidents requiring supervisor follow-up.</p>
-        <Table columns={columns} dataSource={tamper.recentEvents} pagination={false} scroll={{ x: 900 }} className="data-table" />
+        <Input
+          placeholder="Search by bin..."
+          value={searchText}
+          onChange={(event) => setSearchText(event.target.value)}
+          style={{ marginBottom: 12, maxWidth: 320 }}
+        />
+        <Table columns={columns} dataSource={filteredTamperRows} pagination={false} scroll={{ x: 980 }} className="data-table" />
       </PageCard>
     </div>
   );
 }
-

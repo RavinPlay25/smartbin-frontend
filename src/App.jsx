@@ -2,6 +2,7 @@ import { Layout, Spin } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Sidebar from "./components/Sidebar";
 import Topbar from "./components/Topbar";
+import Chatbot from "./components/Chatbot";
 import OverviewPage from "./pages/OverviewPage";
 import StabilityPage from "./pages/StabilityPage";
 import TamperAnalyticsPage from "./pages/TamperAnalyticsPage";
@@ -66,6 +67,40 @@ export default function App() {
   const model = useMemo(() => buildDashboardModel(bins, logs), [bins, logs]);
   const isAdmin = currentUserRole === "admin";
   const roleTitle = isAdmin ? "Admin" : "Supervisor";
+  const chatContext = useMemo(() => {
+    const activeChart = activePage === "tamper"
+      ? "tamper_trend"
+      : activePage === "rfid"
+        ? "rfid_activity"
+        : activePage === "overview"
+          ? "service_mode"
+          : null;
+
+    const highlightedMetric = activePage === "tamper"
+      ? "tamper_count"
+      : activePage === "rfid"
+        ? "rfid_denied"
+        : activePage === "overview"
+          ? "service_mode_bins"
+          : null;
+
+    return {
+      selectedBin: null,
+      activeChart,
+      visibleRange: null,
+      highlightedMetric
+    };
+  }, [activePage]);
+
+  const supervisorChatContext = useMemo(
+    () => ({
+      selectedBin: null,
+      activeChart: "tamper_trend",
+      visibleRange: null,
+      highlightedMetric: "tamper_count"
+    }),
+    []
+  );
 
   const currentPage = useMemo(() => {
     if (activePage === "users" && !isAdmin) return <OverviewPage model={model} onRefreshBins={refreshBins} currentUserRole={currentUserRole} />;
@@ -101,6 +136,7 @@ export default function App() {
             )}
           </Content>
         </Layout>
+        <Chatbot context={supervisorChatContext} />
       </Layout>
     );
   }
@@ -119,7 +155,11 @@ export default function App() {
       />
 
       <Layout className="main-layout">
-        <Topbar notifications={model.notifications} onOpenTamper={() => setActivePage("tamper")} onSwitchRole={null} />
+        <Topbar
+          notifications={model.notifications}
+          onOpenTamper={() => setActivePage("tamper")}
+          onSwitchRole={null}
+        />
 
         <Content className="content-area">
           {loading ? (
@@ -131,6 +171,7 @@ export default function App() {
           )}
         </Content>
       </Layout>
+      <Chatbot context={chatContext} />
     </Layout>
   );
 }

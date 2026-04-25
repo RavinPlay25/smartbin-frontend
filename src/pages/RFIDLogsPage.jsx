@@ -18,6 +18,7 @@ import { approveRFID } from "../services/api";
 
 export default function RFIDLogsPage({ model, onRefreshLogs, currentUserRole }) {
   const data = model.rfid;
+  const [searchText, setSearchText] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedUid, setSelectedUid] = useState("");
   const [name, setName] = useState("");
@@ -76,13 +77,62 @@ export default function RFIDLogsPage({ model, onRefreshLogs, currentUserRole }) 
     }
   };
 
+  const binFilterValues = useMemo(
+    () => [...new Set((data.table || []).map((row) => row.bin_id).filter(Boolean))].sort(),
+    [data.table]
+  );
+
+  const eventFilterValues = [
+    "tamper_detected",
+    "rfid_granted",
+    "rfid_denied",
+    "service_mode_enabled",
+    "service_mode_disabled"
+  ];
+
+  const statusFilterValues = ["granted", "denied", "pending"];
+
+  const filteredTableData = useMemo(() => {
+    const term = searchText.trim().toLowerCase();
+    if (!term) return data.table;
+
+    return (data.table || []).filter((row) => {
+      return (
+        String(row?.bin_id || "").toLowerCase().includes(term) ||
+        String(row?.event || "").toLowerCase().includes(term) ||
+        String(row?.rfid_uid || "").toLowerCase().includes(term) ||
+        String(row?.user || "").toLowerCase().includes(term)
+      );
+    });
+  }, [data.table, searchText]);
+
   const columns = useMemo(() => {
     const baseColumns = [
       { title: "TIMESTAMP", dataIndex: "timestamp", key: "timestamp" },
+      {
+        title: "EVENT",
+        dataIndex: "event",
+        key: "event",
+        filters: eventFilterValues.map((value) => ({ text: value, value })),
+        onFilter: (value, record) => String(record.event || "").toLowerCase() === String(value).toLowerCase()
+      },
       { title: "STAFF", dataIndex: "user", key: "user" },
       { title: "ROLE", dataIndex: "role", key: "role" },
-      { title: "BIN ID", dataIndex: "bin_id", key: "bin_id" },
-      { title: "STATUS", dataIndex: "status", key: "status", render: (v) => <StatusBadge value={v} /> },
+      {
+        title: "BIN ID",
+        dataIndex: "bin_id",
+        key: "bin_id",
+        filters: binFilterValues.map((value) => ({ text: value, value })),
+        onFilter: (value, record) => record.bin_id === value
+      },
+      {
+        title: "STATUS",
+        dataIndex: "status",
+        key: "status",
+        filters: statusFilterValues.map((value) => ({ text: value, value })),
+        onFilter: (value, record) => String(record.status || "").toLowerCase() === String(value).toLowerCase(),
+        render: (v) => <StatusBadge value={v} />
+      },
       { title: "REASON", dataIndex: "reason", key: "reason" }
     ];
 
@@ -114,7 +164,7 @@ export default function RFIDLogsPage({ model, onRefreshLogs, currentUserRole }) 
         }
       }
     ];
-  }, [submitting, approvingUid, currentUserRole]);
+  }, [submitting, approvingUid, currentUserRole, binFilterValues]);
 
   return (
     <div className="page-shell">
@@ -164,9 +214,15 @@ export default function RFIDLogsPage({ model, onRefreshLogs, currentUserRole }) 
 
       <PageCard title="Detailed Access Logs">
         <p className="chart-subtitle">Latest RFID access records for investigation and audit.</p>
+        <Input
+          placeholder="Search logs..."
+          value={searchText}
+          onChange={(event) => setSearchText(event.target.value)}
+          style={{ marginBottom: 12, maxWidth: 360 }}
+        />
         <Table
           columns={columns}
-          dataSource={data.table}
+          dataSource={filteredTableData}
           pagination={{ pageSize: 10, showSizeChanger: false }}
           scroll={{ x: 1120 }}
           className="data-table"

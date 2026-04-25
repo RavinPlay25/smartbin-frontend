@@ -2,7 +2,11 @@ import { Avatar, Badge, Button, Dropdown, Input } from "antd";
 import { BellOutlined, CalendarOutlined, SearchOutlined, UserOutlined } from "@ant-design/icons";
 import NotificationsDropdown from "./notificationsDropdown";
 
-export default function Topbar({ notifications, onOpenTamper, onSwitchRole }) {
+export default function Topbar({
+  notifications,
+  onOpenTamper,
+  onSwitchRole
+}) {
   return (
     <header className="topbar">
       <Input
@@ -17,7 +21,7 @@ export default function Topbar({ notifications, onOpenTamper, onSwitchRole }) {
             Switch Role
           </Button>
         ) : null}
-        <Button className="date-filter" icon={<CalendarOutlined />}>Last 7 Days</Button>
+        <Button className="date-filter" icon={<CalendarOutlined />}>Live Data</Button>
 
         <Dropdown
           trigger={["click"]}
