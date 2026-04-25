@@ -2,8 +2,10 @@ import {
   AlertOutlined,
   AppstoreOutlined,
   BarChartOutlined,
+  LogoutOutlined,
   KeyOutlined,
   LineChartOutlined,
+  TeamOutlined,
   SettingOutlined
 } from "@ant-design/icons";
 
@@ -12,10 +14,13 @@ const menu = [
   { key: "stability", label: "Stability Monitoring", icon: LineChartOutlined },
   { key: "tamper", label: "Tamper Detection Analytics", icon: AlertOutlined },
   { key: "rfid", label: "RFID Access Logs", icon: KeyOutlined },
+  { key: "users", label: "Users & Roles", icon: TeamOutlined, adminOnly: true },
   { key: "settings", label: "Settings", icon: SettingOutlined }
 ];
 
-export default function Sidebar({ activePage, onSelect }) {
+export default function Sidebar({ activePage, onSelect, currentUserRole, roleTitle, onSwitchRole }) {
+  const visibleMenu = menu.filter((item) => !item.adminOnly || currentUserRole === "admin");
+
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
@@ -24,7 +29,7 @@ export default function Sidebar({ activePage, onSelect }) {
       </div>
 
       <nav className="sidebar-nav">
-        {menu.map((item) => {
+        {visibleMenu.map((item) => {
           const Icon = item.icon;
           const active = activePage === item.key;
 
@@ -41,6 +46,14 @@ export default function Sidebar({ activePage, onSelect }) {
           );
         })}
       </nav>
+
+      <div className="sidebar-footer">
+        <div className="sidebar-role-pill">{roleTitle} View</div>
+        <button type="button" className="sidebar-switch-role" onClick={onSwitchRole}>
+          <LogoutOutlined />
+          <span>Switch Role</span>
+        </button>
+      </div>
     </aside>
   );
 }

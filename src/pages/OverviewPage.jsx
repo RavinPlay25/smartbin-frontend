@@ -4,12 +4,15 @@ import {
   EnvironmentOutlined,
   InboxOutlined
 } from "@ant-design/icons";
+import { message, Popconfirm, Switch } from "antd";
 import L from "leaflet";
+import { useState } from "react";
 import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
 import PageCard from "../components/PageCard";
 import StatCard from "../components/StatCard";
 import StatusBadge from "../components/StatusBadge";
 import { EventBreakdownChart, SystemHealthTrendChart } from "../components/SimpleCharts";
+import { updateServiceMode } from "../services/api";
 
 const DEFAULT_CENTER = [6.9271, 79.8612];
 
@@ -41,7 +44,8 @@ const getBinCoordinates = (bin) => {
   return [parsedLat, parsedLng];
 };
 
-export default function OverviewPage({ model }) {
+export default function OverviewPage({ model, onRefreshBins, currentUserRole }) {
+  const [loadingSwitches, setLoadingSwitches] = useState({});
   const { stats, decoratedBins, recentAlerts, overview } = model;
   const markerBins = decoratedBins
     .map((bin) => ({
@@ -62,6 +66,23 @@ export default function OverviewPage({ model }) {
           coordinates: DEFAULT_CENTER
         }
       ];
+
+  const handleServiceModeToggle = async (binId, enabled) => {
+    setLoadingSwitches((prev) => ({ ...prev, [binId]: true }));
+
+    try {
+      await updateServiceMode(binId, enabled);
+      message.success(`Service mode ${enabled ? "enabled" : "disabled"} for ${binId}`);
+
+      if (typeof onRefreshBins === "function") {
+        await onRefreshBins();
+      }
+    } catch (error) {
+      message.error(error.message || "Failed to update service mode");
+    } finally {
+      setLoadingSwitches((prev) => ({ ...prev, [binId]: false }));
+    }
+  };
 
   return (
     <div className="page-shell">
@@ -150,6 +171,26 @@ export default function OverviewPage({ model }) {
               <div>
                 <h4>{bin.bin_id}</h4>
                 <p>Last Seen: {bin.lastSeenLabel}</p>
+                <div className="bin-service-row">
+                  <span className="bin-service-label">Service Mode</span>
+                  {currentUserRole === "admin" ? (
+                    <Popconfirm
+                      title={bin.service_mode ? "Disable Service Mode?" : "Enable Service Mode?"}
+                      okText="Yes"
+                      cancelText="No"
+                      onConfirm={() => handleServiceModeToggle(bin.bin_id, !bin.service_mode)}
+                    >
+                      <Switch
+                        checked={Boolean(bin.service_mode)}
+                        loading={Boolean(loadingSwitches[bin.bin_id])}
+                        checkedChildren="ON"
+                        unCheckedChildren="OFF"
+                      />
+                    </Popconfirm>
+                  ) : (
+                    <span className="bin-service-state">{bin.service_mode ? "ON" : "OFF"}</span>
+                  )}
+                </div>
               </div>
               <div className="bin-badges">
                 <StatusBadge value={String(bin.status || "offline").toLowerCase()} />

@@ -1,4 +1,5 @@
-import { Table } from "antd";
+import { useMemo, useState } from "react";
+import { Button, Input, Modal, Select, Table, message } from "antd";
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -13,18 +14,107 @@ import {
   RfidScansByHourChart,
   RoleBreakdownChart
 } from "../components/SimpleCharts";
+import { approveRFID } from "../services/api";
 
-const columns = [
-  { title: "TIMESTAMP", dataIndex: "timestamp", key: "timestamp" },
-  { title: "STAFF", dataIndex: "user", key: "user" },
-  { title: "ROLE", dataIndex: "role", key: "role" },
-  { title: "BIN ID", dataIndex: "bin_id", key: "bin_id" },
-  { title: "STATUS", dataIndex: "status", key: "status", render: (v) => <StatusBadge value={v} /> },
-  { title: "REASON", dataIndex: "reason", key: "reason" }
-];
-
-export default function RFIDLogsPage({ model }) {
+export default function RFIDLogsPage({ model, onRefreshLogs, currentUserRole }) {
   const data = model.rfid;
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedUid, setSelectedUid] = useState("");
+  const [name, setName] = useState("");
+  const [role, setRole] = useState("garbage_collector");
+  const [submitting, setSubmitting] = useState(false);
+  const [approvingUid, setApprovingUid] = useState("");
+
+  const openApproveModal = (uid) => {
+    if (!uid || uid === "-") {
+      message.error("RFID UID is missing for this log entry");
+      return;
+    }
+
+    setSelectedUid(uid);
+    setName("");
+    setRole("garbage_collector");
+    setModalOpen(true);
+  };
+
+  const closeApproveModal = () => {
+    if (submitting) return;
+    setModalOpen(false);
+    setSelectedUid("");
+    setName("");
+    setRole("garbage_collector");
+  };
+
+  const handleApproveSubmit = async () => {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      message.error("Name is required");
+      return;
+    }
+
+    setSubmitting(true);
+    setApprovingUid(selectedUid);
+
+    try {
+      await approveRFID({
+        rfid_uid: selectedUid,
+        name: trimmedName,
+        role
+      });
+
+      message.success("RFID approved successfully");
+      closeApproveModal();
+
+      if (typeof onRefreshLogs === "function") {
+        await onRefreshLogs();
+      }
+    } catch (error) {
+      message.error(error.message || "Failed to approve RFID");
+    } finally {
+      setSubmitting(false);
+      setApprovingUid("");
+    }
+  };
+
+  const columns = useMemo(() => {
+    const baseColumns = [
+      { title: "TIMESTAMP", dataIndex: "timestamp", key: "timestamp" },
+      { title: "STAFF", dataIndex: "user", key: "user" },
+      { title: "ROLE", dataIndex: "role", key: "role" },
+      { title: "BIN ID", dataIndex: "bin_id", key: "bin_id" },
+      { title: "STATUS", dataIndex: "status", key: "status", render: (v) => <StatusBadge value={v} /> },
+      { title: "REASON", dataIndex: "reason", key: "reason" }
+    ];
+
+    if (currentUserRole !== "admin") {
+      return baseColumns;
+    }
+
+    return [
+      ...baseColumns,
+      {
+        title: "ACTION",
+        key: "action",
+        render: (_, record) => {
+          const isPending = String(record?.status || "").toLowerCase() === "pending";
+          if (!isPending) return "-";
+
+          const isLoading = submitting && approvingUid === record.rfid_uid;
+
+          return (
+            <Button
+              type="primary"
+              size="small"
+              loading={isLoading}
+              onClick={() => openApproveModal(record.rfid_uid)}
+            >
+              Approve Access
+            </Button>
+          );
+        }
+      }
+    ];
+  }, [submitting, approvingUid, currentUserRole]);
 
   return (
     <div className="page-shell">
@@ -60,12 +150,12 @@ export default function RFIDLogsPage({ model }) {
           {data.roleBreakdown.length === 0 ? (
             <p className="empty-text">No role-based RFID data yet.</p>
           ) : (
-            data.roleBreakdown.map((role) => (
-              <div key={role.name} className="role-split-item">
-                <strong>{role.name}</strong>
-                <span>Total: {role.total}</span>
-                <span>Granted: {role.granted}</span>
-                <span>Denied: {role.denied}</span>
+            data.roleBreakdown.map((roleItem) => (
+              <div key={roleItem.name} className="role-split-item">
+                <strong>{roleItem.name}</strong>
+                <span>Total: {roleItem.total}</span>
+                <span>Granted: {roleItem.granted}</span>
+                <span>Denied: {roleItem.denied}</span>
               </div>
             ))
           )}
@@ -78,10 +168,46 @@ export default function RFIDLogsPage({ model }) {
           columns={columns}
           dataSource={data.table}
           pagination={{ pageSize: 10, showSizeChanger: false }}
-          scroll={{ x: 980 }}
+          scroll={{ x: 1120 }}
           className="data-table"
         />
       </PageCard>
+
+      <Modal
+        title="Approve Pending RFID"
+        open={modalOpen}
+        onCancel={closeApproveModal}
+        onOk={handleApproveSubmit}
+        okText="Approve Access"
+        confirmLoading={submitting}
+        destroyOnClose
+      >
+        <div className="rfid-approve-form">
+          <label htmlFor="rfid-uid-input">RFID UID</label>
+          <Input id="rfid-uid-input" value={selectedUid} readOnly />
+
+          <label htmlFor="rfid-name-input">Name</label>
+          <Input
+            id="rfid-name-input"
+            placeholder="Enter staff name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            maxLength={80}
+          />
+
+          <label htmlFor="rfid-role-select">Role</label>
+          <Select
+            id="rfid-role-select"
+            value={role}
+            onChange={setRole}
+            options={[
+              { value: "admin", label: "admin" },
+              { value: "supervisor", label: "supervisor" },
+              { value: "garbage_collector", label: "garbage_collector" }
+            ]}
+          />
+        </div>
+      </Modal>
     </div>
   );
 }

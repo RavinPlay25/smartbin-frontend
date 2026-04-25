@@ -222,6 +222,7 @@ export const buildDashboardModel = (bins, logs) => {
 
   const rfidTable = rfidLogs.slice(0, 30).map((log, index) => ({
     key: `${log.timestamp}-${index}`,
+    rfid_uid: log.rfid_uid || log.uid || "-",
     timestamp: toLabelDate(log.timestamp),
     user: log.user || "Unknown",
     role: normalizeRoleLabel(log.role),
@@ -309,4 +310,3 @@ export const buildDashboardModel = (bins, logs) => {
     }
   };
 };
-
