@@ -1,35 +1,28 @@
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/+$/, "");
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000").replace(/\/+$/, "");
+
+console.log("API_BASE_URL:", API_BASE_URL);
 
 const parseJson = async (response) => {
   if (!response.ok) {
     throw new Error(`Request failed with status ${response.status}`);
   }
 
-  const json = await response.json();
-
-  if (Array.isArray(json?.data)) {
-    return json.data;
-  }
-
-  if (Array.isArray(json?.data?.data)) {
-    return json.data.data;
-  }
-
-  return [];
+  const result = await response.json();
+  return Array.isArray(result?.data) ? result.data : [];
 };
 
 export const getBins = async () => {
-  const res = await fetch(`${API_BASE}/bins`, {
+  const response = await fetch(`${API_BASE_URL}/api/bins`, {
     headers: { Accept: "application/json" }
   });
 
-  return parseJson(res);
+  return parseJson(response);
 };
 
 export const getLogs = async () => {
-  const res = await fetch(`${API_BASE}/logs`, {
+  const response = await fetch(`${API_BASE_URL}/api/logs`, {
     headers: { Accept: "application/json" }
   });
 
-  return parseJson(res);
+  return parseJson(response);
 };
