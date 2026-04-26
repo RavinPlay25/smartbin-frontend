@@ -21,7 +21,7 @@ export default function App() {
   const [bins, setBins] = useState([]);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentUserRole, setCurrentUserRole] = useState(null);
+  const [currentUserRole, setCurrentUserRole] = useState("admin");
 
   const refreshBins = useCallback(async () => {
     const binsResult = await Promise.allSettled([getBins()]);
